@@ -16,7 +16,6 @@ async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dic
     """
     회원가입
     """
-
     new_member = Member ( 
         name=data.name,
         email = data.email,
@@ -34,6 +33,7 @@ async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dic
     session.commit()
     
     return {"message":"정상적으로 등록되었습니다"}
+
 
 @member_router.post("/signin")
 async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dict:
@@ -59,6 +59,7 @@ async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dic
     # 4. 토큰 생성 및 반환
     # return {"message":"로그인에 성공하였습니다", "access_token":create_jwt_token(user.email, user.id)}
 
+
 @member_router.put("/mypage/edit")
 async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict:
     """
@@ -68,6 +69,7 @@ async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict
     statement = select(Member).where(Member.member_idx == data.member_idx)
     member = session.exec(statement).first()
 
+    # 2. 회원 없을 시 404 오류
     if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
     member.name = data.name
@@ -89,3 +91,23 @@ async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict
     updated_member = MemberUpdate.model_validate(member)
 
     return updated_member.model_dump()
+
+
+@member_router.delete("/delete_account")
+async def delete_member(session=Depends(get_session))->dict:
+    """
+    회원 탈퇴
+    """
+    member_idx = 1
+    # 1. 회원 조회
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 회원 정보 삭제
+    session.delete(member)
+    session.commit()
+
+    return {"message":"회원 삭제가 완료되었습니다."}
