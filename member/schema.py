@@ -13,11 +13,30 @@ class MemberSignUp(SQLModel):
     nickname: str
     phone: str
     notice: bool
-    sex: str
-    household: int
+    birth: str = ""
+    sex: str = ""
+    household: int = 0
 
 
 # 로그인 시 전달되는 데이터 모델
 class MemberSignIn(SQLModel):
     email: EmailStr
     password: str
+
+
+# 회원 정보 수정 시 전달되는 데이터 모델
+class MemberUpdate(SQLModel):
+    member_idx:int
+    profile_img: str
+    name: str
+    email: EmailStr
+    password: str
+    nickname: str
+    phone: str
+    notice: bool
+    birth: str
+    sex: str
+    household: int
+
+    class Config:
+        orm_mode = True

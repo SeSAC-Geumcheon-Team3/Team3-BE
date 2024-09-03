@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, status, Depends
 from member.model import Member 
-from member.schema import MemberSignUp, MemberSignIn
+from member.schema import MemberSignUp, MemberSignIn, MemberUpdate
 from connection import get_session
 from sqlmodel import select
 # from auth.hash_password import HashPassword
@@ -25,6 +25,7 @@ async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dic
         nickname = data.nickname,
         phone  = data.phone,
         notice = data.notice,
+        birth = data.birth,
         sex = data.sex,
         household = data.household
     )
@@ -57,3 +58,34 @@ async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dic
 
     # 4. 토큰 생성 및 반환
     # return {"message":"로그인에 성공하였습니다", "access_token":create_jwt_token(user.email, user.id)}
+
+@member_router.put("/mypage/edit")
+async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict:
+    """
+    회원정보 수정
+    """
+    # 1. DB에서 회원 정보를 조회
+    statement = select(Member).where(Member.member_idx == data.member_idx)
+    member = session.exec(statement).first()
+
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    member.name = data.name
+    member.email = data.email
+    member.password = data.password
+    member.nickname = data.nickname
+    member.phone = data.phone
+    member.notice = data.notice
+    member.sex = data.sex
+    member.household = data.household
+    member.profile_img = data.profile_img
+
+    # 3. 데이터베이스에 변경 사항 저장
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+
+    # 4. 수정된 member를 MemberUpdate 객체로 변환하여 반환
+    updated_member = MemberUpdate.model_validate(member)
+
+    return updated_member.model_dump()
