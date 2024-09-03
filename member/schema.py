@@ -39,7 +39,7 @@ class MemberUpdate(SQLModel):
     household: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ID 찾을 때 전달되는 데이터 모델
