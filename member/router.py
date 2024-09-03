@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, status, Depends
 from member.model import Member 
-from member.schema import MemberSignUp, MemberSignIn, MemberUpdate
+from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId
 from connection import get_session
 from sqlmodel import select
 # from auth.hash_password import HashPassword
@@ -111,3 +111,28 @@ async def delete_member(session=Depends(get_session))->dict:
     session.commit()
 
     return {"message":"회원 삭제가 완료되었습니다."}
+
+
+@member_router.post("/findid")
+async def find_id(data:FindMemberId, session=Depends(get_session))->dict:
+    """
+    사용자 ID 찾기
+    """
+    # 1. 회원 조회
+    statement = select(Member).where((Member.name==data.name) & (Member.phone==data.phone))
+    member = session.exec(statement).first()
+
+     # 2. 회원 없을 시 404 오류
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 마스킹
+    user, domain = member.email.split('@')
+
+    if len(user) <= 2:
+        # 사용자 이름이 2자 이하일 경우, 모든 문자 마스킹
+        masked_user = user[0] + '*' * (len(user) - 1)
+    else:
+        # 사용자 이름이 3자 이상인 경우, 중간 부분을 마스킹
+        masked_user = user[:2] + '*' * (len(user) - 2) 
+
+    return { "email": f"{masked_user}@{domain}" }
