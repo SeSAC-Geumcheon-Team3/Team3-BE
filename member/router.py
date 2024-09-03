@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, status, Depends
 from member.model import Member 
-from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId
+from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw
 from connection import get_session
 from sqlmodel import select
 # from auth.hash_password import HashPassword
@@ -136,3 +136,18 @@ async def find_id(data:FindMemberId, session=Depends(get_session))->dict:
         masked_user = user[:2] + '*' * (len(user) - 2) 
 
     return { "email": f"{masked_user}@{domain}" }
+
+
+@member_router.post("/findpw")
+async def find_pw(data:FindMemberPw, session=Depends(get_session)) -> dict:
+    """
+    비밀번호 찾기
+    """
+    # 1. 회원 조회
+    statement = select(Member).where((Member.email==data.email) & (Member.name==data.name) & (Member.phone==data.phone))
+    member = session.exec(statement).first()
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 2. pw 재설정 링크 생성 및 이메일 발송 링크 생성
+
+    return {"link":"거시기입니다"}
