@@ -6,10 +6,13 @@ from member.model import Member
 from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw
 from connection import get_session
 from sqlmodel import select
+from member.utils import HashPassword
 # from auth.hash_password import HashPassword
 # from auth.jwt_handler import create_jwt_token
 
 member_router = APIRouter( tags=["member"] )
+
+hash_password = HashPassword()
 
 @member_router.post("/signup")
 async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dict:
@@ -19,8 +22,7 @@ async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dic
     new_member = Member ( 
         name=data.name,
         email = data.email,
-        password = data.password,
-        # password=hash_password.hash_password(data.password),
+        password=hash_password.hash_password(data.password),
         nickname = data.nickname,
         phone  = data.phone,
         notice = data.notice,
@@ -49,8 +51,7 @@ async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dic
         raise HTTPException( status_code= status.HTTP_404_NOT_FOUND, detail="일치하는 사용자가 존재하지 않습니다" )
     
     # 3. 패스워드 일치여부 확인
-    # if not hash_password.verify_password(data.password, user.password):
-    if data.password != member.password:
+    if not hash_password.verify_password(data.password, member.password):
         raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED, detail="패스워드가 일치하지 않습니다" )
     
     # 4. 로그인 성공 확인
@@ -74,7 +75,7 @@ async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict
 
     member.name = data.name
     member.email = data.email
-    member.password = data.password
+    member.password = hash_password.hash_password(data.password)
     member.nickname = data.nickname
     member.phone = data.phone
     member.notice = data.notice
