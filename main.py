@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-# from routes.users import user_router
+from member.router import member_router
 # from routes.events import event_router
 from connection import conn
 from fastapi.middleware.cors import CORSMiddleware #참고: https://fastapi.tiangolo.com/ko/tutorial/cors/#corsmiddleware
@@ -30,7 +30,7 @@ app.add_middleware(
 
 
 # user 추가
-# app.include_router(user_router, prefix="/user")
+app.include_router(member_router)
 # app.include_router(event_router, prefix="/event")
 
 
