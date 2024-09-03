@@ -5,7 +5,7 @@ from pydantic import EmailStr
 from sqlmodel import SQLModel
 
 
-# 사용자 등록 시 전달되는 데이터 모델
+# 회원가입 시 전달되는 데이터 모델
 class MemberSignUp(SQLModel):
     name: str
     email: EmailStr
@@ -15,3 +15,9 @@ class MemberSignUp(SQLModel):
     notice: bool
     sex: str
     household: int
+
+
+# 로그인 시 전달되는 데이터 모델
+class MemberSignIn(SQLModel):
+    email: EmailStr
+    password: str
