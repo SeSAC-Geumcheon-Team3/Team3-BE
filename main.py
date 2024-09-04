@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-# from routes.users import user_router
-# from routes.events import event_router
+from member.router import member_router
 from product.router import product_router
 from board.router import board_router
 from connection import conn
 from fastapi.middleware.cors import CORSMiddleware #참고: https://fastapi.tiangolo.com/ko/tutorial/cors/#corsmiddleware
+
+from sqlalchemy.exc import IntegrityError
+from error_handlers import handle_integrity_error
+
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
@@ -30,12 +33,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# user 추가
-# app.include_router(user_router, prefix="/user")
-# app.include_router(event_router, prefix="/event")
+# 라우터 추가
+app.include_router(member_router)
 app.include_router(product_router)
 app.include_router(board_router)
+
+# 오류핸들러 추가
+app.add_exception_handler(IntegrityError, handle_integrity_error)
 
 # main이라는 이름의 파일이 직접 실행되는가(다른 모듈에 포함되어 실행되는 것이 아님)
 if __name__=="__main__":
