@@ -55,7 +55,7 @@ async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dic
         raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED, detail="패스워드가 일치하지 않습니다" )
 
     # 4. 토큰 생성 및 반환
-    return {"access_token": f"Bearer {jwt_handler.create_token(member.member_idx, member.authority)}", "token_type": "bearer"}
+    return {"access_token": jwt_handler.create_token(member.member_idx, member.authority)}
 
 
 @member_router.get("/logout")
@@ -80,7 +80,7 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
     회원정보 수정
     """
     # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
-    member_idx = token.member_idx
+    member_idx = token["member_idx"]
     statement = select(Member).where(Member.member_idx == member_idx)
     member = session.exec(statement).first()
 
@@ -113,7 +113,7 @@ async def delete_member(session=Depends(get_session), token=Depends(get_access_t
     """
     회원 탈퇴
     """
-    member_idx = token.member_idx
+    member_idx = token["member_idx"]
     # 1. 회원 조회
     statement = select(Member).where(Member.member_idx == member_idx)
     member = session.exec(statement).first()
