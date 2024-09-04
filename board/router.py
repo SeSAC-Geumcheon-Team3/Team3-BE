@@ -6,14 +6,18 @@ from board.model import Board
 from board.schema import BoardCreateRequest, BoardResponse, BoardListResponse
 from connection import get_session
 
+from member.auth import get_access_token
+
 board_router = APIRouter(
     tags=["Board"]
 )
 
 # 게시글 등록
 @board_router.post("/board", status_code=201)
-async def create_board(board_data: BoardCreateRequest = Body(...), session=Depends(get_session)) -> dict:
-    member_idx = 1  # 임시 idx; JWT 수정 필요
+async def create_board(board_data: BoardCreateRequest = Body(...), session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    
+    
+    member_idx = token["member_idx"]
     notice = 0  # default
 
     # 이미지 경로
@@ -107,12 +111,16 @@ async def get_boards(
 
 # 게시글 삭제
 @board_router.delete("/board")
-async def delete_board(board_idx: int = Query(..., description="삭제할 게시글의 idx"), session=Depends(get_session)) -> dict:
+async def delete_board(board_idx: int = Query(..., description="삭제할 게시글의 idx"), session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    member_idx = token["member_idx"]
     board = session.get(Board, board_idx)
     
     if not board:
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     
+    if board.member_idx!=member_idx:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="삭제할 권한이 없습니다")
+
     session.delete(board)
     session.commit()
 
