@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from member.router import member_router
+from product.router import product_router
+from board.router import board_router
 from connection import conn
 from fastapi.middleware.cors import CORSMiddleware #참고: https://fastapi.tiangolo.com/ko/tutorial/cors/#corsmiddleware
 
@@ -33,6 +35,8 @@ app.add_middleware(
 
 # 라우터 추가
 app.include_router(member_router)
+app.include_router(product_router)
+app.include_router(board_router)
 
 # 오류핸들러 추가
 app.add_exception_handler(IntegrityError, handle_integrity_error)
