@@ -27,7 +27,7 @@ class JWTHandler:
     """
     jwt 토큰 핸들링
     """
-    def __init__(self, secret_key: str=SECRET_KEY, algorithm: str="HS256", expires_in: int=3600):
+    def __init__(self, secret_key: str=SECRET_KEY, algorithm: str="HS256", expires_in: int=360000):
         self.secret_key = secret_key
         self.algorithm = algorithm
         self.expires_in = expires_in
