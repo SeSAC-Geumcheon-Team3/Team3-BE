@@ -4,6 +4,7 @@ from product.model import Product, ProductLog
 from product.schema import ProductCreateRequest, ProductItem, ProductResponse, ProductUpdateRequest, ProductLogResponse, LinearData, PieData
 from connection import get_session
 from sqlmodel import select, func
+from member.auth import get_access_token
 
 product_router = APIRouter(
     tags=["Products"]
@@ -18,10 +19,13 @@ product_logs = []
 async def get_products(
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(25, ge=1, le=100, description="페이지당 항목 수"),
-    session=Depends(get_session)
+    session=Depends(get_session),
+    token = Depends(get_access_token)
 ) -> ProductResponse:
 
-    total_items_query = select(func.count()).select_from(Product)
+    member_idx = token["member_idx"]
+
+    total_items_query = select(func.count()).select_from(Product).where(Product.member_idx==member_idx)
     total_items = session.exec(total_items_query).one()  # 총 생필품 수
 
     if total_items == 0:
@@ -36,13 +40,12 @@ async def get_products(
     offset = (page - 1) * size
     limit = size
 
-    products_query = select(Product).offset(offset).limit(limit)
+    products_query = select(Product).where(Product.member_idx==member_idx).offset(offset).limit(limit)
     products = session.exec(products_query).all()
 
     items_pydantic = [
         ProductItem(
             index=product.idx,
-            memberIdx=product.member_idx if product.member_idx is not None else 0,
             icon=product.icon,
             product=product.product_name,
             category=product.category,
@@ -64,11 +67,11 @@ async def get_products(
 
 # 생필품 목록 입력
 @product_router.post("/product", status_code=201)
-async def add_product(product_data: ProductCreateRequest = Body(...), session=Depends(get_session)) -> dict:
-    member_idx = 1  # 임시 idx; JWT 수정 필요
+async def add_product(product_data: ProductCreateRequest = Body(...), session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    member_idx = token["member_idx"]
 
     new_product = Product(
-        member_idx=member_idx,  # 임시 idx; JWT 수정 필요
+        member_idx=member_idx,
         icon=product_data.icon,
         product_name=product_data.product_name,
         stock=product_data.stock,
@@ -85,16 +88,18 @@ async def add_product(product_data: ProductCreateRequest = Body(...), session=De
 
 # 생필품 삭제
 @product_router.delete("/product")
-async def delete_product(idx: int = Query(..., description="삭제할 생필품의 idx"), session = Depends(get_session)) -> dict:
-    
+async def delete_product(idx: int = Query(..., description="삭제할 생필품의 idx"), session = Depends(get_session), token=Depends(get_access_token)) -> dict:
+    member_idx = token["member_idx"]
     product = session.get(Product, idx)
     
     if not product:
         raise HTTPException(status_code=404, detail="생필품을 찾을 수 없습니다.")
     
-    session.delete(product)
-    session.commit()
+    if product.member_idx != member_idx:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="삭제 권한이 없습니다")
     
+    session.delete(product)
+    session.commit()    
     
     deleted_product = session.get(Product, idx)
     if deleted_product:
@@ -102,13 +107,19 @@ async def delete_product(idx: int = Query(..., description="삭제할 생필품�
     
     return {"message": "선택하신 생필품이 삭제되었습니다."}
 
+
 # 생필품 수정
 @product_router.put("/product", response_model=dict)
-async def update_products(request: ProductUpdateRequest, session = Depends(get_session)) -> dict:
+async def update_products(request: ProductUpdateRequest, session = Depends(get_session), token=Depends(get_access_token)) -> dict:
+    member_idx = token["member_idx"]
     updated_idxs = set()
 
     for update in request.data:
         product = session.get(Product, update.idx)
+
+        if product.member_idx != member_idx:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="삭제 권한이 없습니다.")
+
 
         if product:
             product_data = update.dict(exclude_unset=True)
@@ -128,11 +139,14 @@ async def update_products(request: ProductUpdateRequest, session = Depends(get_s
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="생필품을 찾을 수 없습니다.")
 
+
 # 생필품 집계 보고서 조회
 @product_router.get("/product/logs", response_model=ProductLogResponse)
-async def get_product_logs(year: int = Query(..., description="조회할 연도"), session = Depends(get_session)) -> ProductLogResponse:
+async def get_product_logs(year: int = Query(..., description="조회할 연도"), session = Depends(get_session), token=Depends(get_access_token)) -> ProductLogResponse:
     
-    statement = select(ProductLog).where(func.YEAR(ProductLog.update_date) == year)
+    member_idx = token["member_idx"]
+
+    statement = select(ProductLog).where((func.YEAR(ProductLog.update_date) == year) & (ProductLog.member_idx)==member_idx)
     filtered_logs = session.exec(statement).all()
 
     if not filtered_logs:

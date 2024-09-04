@@ -4,7 +4,6 @@ from datetime import date
 
 class ProductItem(BaseModel):
     index: int
-    memberIdx: int
     icon: str
     product: str
     category: str
