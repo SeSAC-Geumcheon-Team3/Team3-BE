@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, status, Depends, Header
 from member.model import Member 
-from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw
+from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw, editMemberPW
 from connection import get_session
 from sqlmodel import select
 from member.utils import HashPassword, JWTHandler
@@ -72,6 +72,27 @@ async def update_member(session=Depends(get_session), token=Depends(get_access_t
     if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
     return {"message":"로그아웃 되었습니다"}
+
+
+@member_router.post("/mypage/get_edit_auth")
+async def auth_edit_member(data:editMemberPW, session=Depends(get_session), token=Depends(get_access_token)) -> dict :
+    """
+    회원정보 수정을 위해 비밀번호를 입력
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: 
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 비밀번호 암호화 후 비교
+    if not hash_password.verify_password(data.password, member.password):
+        raise HTTPException(status_code=401, detail="권한이 없습니다.")
+
+    return {"message":"권한이 있는 사용자입니다."}
 
 
 @member_router.put("/mypage/edit")

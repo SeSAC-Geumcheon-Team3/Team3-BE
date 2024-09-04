@@ -52,3 +52,8 @@ class FindMemberPw(SQLModel):
     email:str
     name:str
     phone:str
+
+
+# 회원정보 수정 위한 비밀번호 데이터 모델
+class editMemberPW(SQLModel):
+    password:str
