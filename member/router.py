@@ -1,18 +1,18 @@
 """
 사용자 관리 기능(ex.로그인,회원가입)
 """
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Header
 from member.model import Member 
 from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw
 from connection import get_session
 from sqlmodel import select
-from member.utils import HashPassword
-# from auth.hash_password import HashPassword
-# from auth.jwt_handler import create_jwt_token
+from member.utils import HashPassword, JWTHandler
+from member.auth import get_access_token
 
 member_router = APIRouter( tags=["member"] )
 
 hash_password = HashPassword()
+jwt_handler = JWTHandler()
 
 @member_router.post("/signup")
 async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dict:
@@ -53,21 +53,36 @@ async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dic
     # 3. 패스워드 일치여부 확인
     if not hash_password.verify_password(data.password, member.password):
         raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED, detail="패스워드가 일치하지 않습니다" )
-    
-    # 4. 로그인 성공 확인
-    return {"message":"로그인에 성공하였습니다"}
 
     # 4. 토큰 생성 및 반환
-    # return {"message":"로그인에 성공하였습니다", "access_token":create_jwt_token(user.email, user.id)}
+    return {"access_token": f"Bearer {jwt_handler.create_token(member.member_idx, member.authority)}", "token_type": "bearer"}
+
+
+@member_router.get("/logout")
+async def update_member(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    로그아웃
+    """
+    print('check3')
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token.member_idx
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    return {"message":"로그아웃 되었습니다"}
 
 
 @member_router.put("/mypage/edit")
-async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict:
+async def update_member(data:MemberUpdate, session=Depends(get_session), token=Depends(get_access_token)) -> dict:
     """
     회원정보 수정
     """
-    # 1. DB에서 회원 정보를 조회
-    statement = select(Member).where(Member.member_idx == data.member_idx)
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token.member_idx
+    statement = select(Member).where(Member.member_idx == member_idx)
     member = session.exec(statement).first()
 
     # 2. 회원 없을 시 404 오류
@@ -95,11 +110,11 @@ async def update_member(data:MemberUpdate, session=Depends(get_session)) -> dict
 
 
 @member_router.delete("/delete_account")
-async def delete_member(session=Depends(get_session))->dict:
+async def delete_member(session=Depends(get_session), token=Depends(get_access_token))->dict:
     """
     회원 탈퇴
     """
-    member_idx = 1
+    member_idx = token.member_idx
     # 1. 회원 조회
     statement = select(Member).where(Member.member_idx == member_idx)
     member = session.exec(statement).first()

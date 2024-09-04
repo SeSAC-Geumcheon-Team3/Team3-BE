@@ -1,5 +1,4 @@
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
 from jose import jwt
 import os
 from dotenv import load_dotenv
@@ -33,12 +32,12 @@ class JWTHandler:
         self.algorithm = algorithm
         self.expires_in = expires_in
 
-    def create_token(self, email: str, user_id: int) -> str:
+    def create_token(self, member_idx: int, authority:str) -> str:
         """
         JWT 생성 함수  
         return: 생성된 JWT 토큰 문자열
         """
-        payload = {"email":email, "user_id":user_id, "iat":time(), "exp": time()+self.expires_in}
+        payload = {"member_idx":member_idx, "authority":authority, "iat":time(), "exp": time()+self.expires_in}
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
 
     def verify_token(self, token: str) -> dict:
