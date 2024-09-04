@@ -63,9 +63,8 @@ async def update_member(session=Depends(get_session), token=Depends(get_access_t
     """
     로그아웃
     """
-    print('check3')
     # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
-    member_idx = token.member_idx
+    member_idx = token["member_idx"]
     statement = select(Member).where(Member.member_idx == member_idx)
     member = session.exec(statement).first()
 
