@@ -7,8 +7,10 @@ from board.schema import BoardResponse, BoardListResponse
 from admin.schema import AdminBoardResponse, AdminBoardListResponse
 from connection import get_session
 
+from member.auth import get_admin_access_token
+
+
 admin_router = APIRouter(
-    prefix="/admin",
     tags=["Admin"]
 )
 
@@ -17,9 +19,10 @@ admin_router = APIRouter(
 async def get_boards(
     page: int = Query(1, ge=1),
     size: int = Query(25, ge=1, le=100),
-    session=Depends(get_session)
+    session=Depends(get_session),
+    token=Depends(get_admin_access_token)
 ) -> AdminBoardListResponse:
-
+    
     total_items_query = select(func.count()).select_from(Board)
     total_items = session.exec(total_items_query).one()
 
@@ -57,7 +60,8 @@ async def get_boards(
 @admin_router.get("/board/detail", response_model=AdminBoardResponse)
 async def get_board_detail(
     board_idx: int = Query(..., description="조회할 게시글의 idx"),
-    session=Depends(get_session)
+    session=Depends(get_session),
+    token=Depends(get_admin_access_token)
 ) -> AdminBoardResponse:
     
     board = session.get(Board, board_idx)
@@ -83,7 +87,8 @@ async def get_board_detail(
 async def get_reported_boards(
     page: int = Query(1, ge=1),
     size: int = Query(25, ge=1, le=100),
-    session=Depends(get_session)
+    session=Depends(get_session),
+    token=Depends(get_admin_access_token)
 ) -> AdminBoardListResponse:
 
     total_items_query = select(func.count()).select_from(Board).where(Board.notice > 0)
@@ -121,7 +126,7 @@ async def get_reported_boards(
 
 # 게시글 삭제
 @admin_router.delete("/board")
-async def delete_board(board_idx: int = Query(..., description="삭제할 게시글의 idx"),session=Depends(get_session)) -> dict:
+async def delete_board(board_idx: int = Query(..., description="삭제할 게시글의 idx"),session=Depends(get_session),token=Depends(get_admin_access_token)) -> dict:
     board = session.get(Board, board_idx)
     
     if not board:

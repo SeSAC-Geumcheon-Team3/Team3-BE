@@ -38,7 +38,7 @@ app.add_middleware(
 app.include_router(member_router)
 app.include_router(product_router)
 app.include_router(board_router)
-app.include_router(admin_router)
+app.include_router(admin_router, prefix="/admin")
 
 # 오류핸들러 추가
 app.add_exception_handler(IntegrityError, handle_integrity_error)
