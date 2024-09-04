@@ -37,7 +37,11 @@ async def create_board(board_data: BoardCreateRequest = Body(...), session=Depen
 
 # 특정 게시글 조회
 @board_router.get("/board", response_model=BoardResponse)
-async def get_board(board_idx: int = Query(..., description="조회할 게시글의 idx"), session=Depends(get_session)) -> BoardResponse:
+async def get_board(
+    board_idx: int = Query(..., description="조회할 게시글의 idx"), 
+    session=Depends(get_session)
+) -> BoardResponse:
+
     board = session.get(Board, board_idx)
     
     if not board:
@@ -48,32 +52,32 @@ async def get_board(board_idx: int = Query(..., description="조회할 게시글
     return BoardResponse(
         board_idx=board.board_idx,
         member_idx=board.member_idx,
+        nickname=board.nickname,
         content=board.content,
         like=board.like,
         created_at=board.created_at,
         image_paths=image_paths,
-        notice=board.notice
     )
 
-# 게시글 목록 조회
-@board_router.get("/boards")
+# 게시글 조회
+@board_router.get("/boards", response_model=BoardListResponse)
 async def get_boards(
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(25, ge=1, le=100, description="페이지당 항목 수"),
     session = Depends(get_session)
-):
+) -> BoardListResponse:
 
     total_items_query = select(func.count()).select_from(Board)
     total_items = session.exec(total_items_query).one()
 
     if total_items == 0:
-        return {
-            "size": size,
-            "page": page,
-            "total_pages": 0,
-            "total_size": 0,
-            "items": []
-        }
+        return BoardListResponse(
+            size=size,
+            page=page,
+            total_pages=0,
+            total_size=0,
+            items=[]
+        )
 
     offset = (page - 1) * size
     limit = size
@@ -86,24 +90,25 @@ async def get_boards(
         image_paths = [board.image_path1, board.image_path2, board.image_path3, board.image_path4]
         image_paths = [path for path in image_paths if path]
 
-        items.append({
-            "board_idx": board.board_idx,
-            "member_idx": board.member_idx,
-            "content": board.content,
-            "like": board.like,
-            "created_at": board.created_at,
-            "image_paths": image_paths
-        })
+        items.append(BoardResponse(
+            board_idx=board.board_idx,
+            member_idx=board.member_idx,
+            nickname=board.nickname,
+            content=board.content,
+            like=board.like,
+            created_at=board.created_at,
+            image_paths=image_paths
+        ))
 
     total_pages = (total_items + size - 1) // size
 
-    return {
-        "size": size,
-        "page": page,
-        "total_pages": total_pages,
-        "total_size": total_items,
-        "items": items
-    }
+    return BoardListResponse(
+        size=size,
+        page=page,
+        total_pages=total_pages,
+        total_size=total_items,
+        items=items
+    )
 
 # 게시글 삭제
 @board_router.delete("/board")

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 # from routes.events import event_router
 from product.router import product_router
 from board.router import board_router
+from admin.router import admin_router
 from connection import conn
 from fastapi.middleware.cors import CORSMiddleware #참고: https://fastapi.tiangolo.com/ko/tutorial/cors/#corsmiddleware
 
@@ -36,6 +37,7 @@ app.add_middleware(
 # app.include_router(event_router, prefix="/event")
 app.include_router(product_router)
 app.include_router(board_router)
+app.include_router(admin_router)
 
 # main이라는 이름의 파일이 직접 실행되는가(다른 모듈에 포함되어 실행되는 것이 아님)
 if __name__=="__main__":
