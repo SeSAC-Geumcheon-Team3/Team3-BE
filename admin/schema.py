@@ -2,11 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-class BoardCreateRequest(BaseModel):
-    content: str
-    imgs: Optional[List[str]] = []
-
-class BoardResponse(BaseModel):
+class AdminBoardResponse(BaseModel):
     board_idx: int
     member_idx: int
     nickname: Optional[str]
@@ -14,10 +10,11 @@ class BoardResponse(BaseModel):
     like: int
     created_at: datetime
     image_paths: List[Optional[str]]
+    notice: int
 
-class BoardListResponse(BaseModel):
+class AdminBoardListResponse(BaseModel):
     page: int
     size: int
     total_pages: int
     total_size: int
-    items: List[BoardResponse]
+    items: List[AdminBoardResponse]

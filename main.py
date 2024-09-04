@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from member.router import member_router
 from product.router import product_router
 from board.router import board_router
+from admin.router import admin_router
 from connection import conn
 from fastapi.middleware.cors import CORSMiddleware #참고: https://fastapi.tiangolo.com/ko/tutorial/cors/#corsmiddleware
 
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(member_router)
 app.include_router(product_router)
 app.include_router(board_router)
+app.include_router(admin_router, prefix="/admin")
 
 # 오류핸들러 추가
 app.add_exception_handler(IntegrityError, handle_integrity_error)
