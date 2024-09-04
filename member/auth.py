@@ -12,7 +12,5 @@ async def get_access_token(Authorization: str = Header(...)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Access token is missing"
         )
-    
-    token_payload = jwt_handler.verify_token(Authorization)
-    print(token_payload)
+    token_payload = jwt_handler.verify_token(Authorization.split(" ")[1])
     return token_payload
