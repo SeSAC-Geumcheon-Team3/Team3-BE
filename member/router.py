@@ -1,7 +1,7 @@
 """
 사용자 관리 기능(ex.로그인,회원가입)
 """
-from fastapi import APIRouter, HTTPException, status, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from member.model import Member 
 from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw, editMemberPW, MemberInfo
 from connection import get_session
@@ -139,13 +139,11 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
 
     member.name = data.name
     member.email = data.email
-    # member.password = hash_password.hash_password(data.password)
     member.nickname = data.nickname
     member.phone = data.phone
     member.notice = data.notice
     member.sex = data.sex
     member.household = data.household
-    member.profile_img = data.profile_img
 
     # 3. 데이터베이스에 변경 사항 저장
     session.add(member)
@@ -153,6 +151,35 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
     session.refresh(member)
 
     return {"message":"회원정보가 성공적으로 수정되었습니다."}
+
+
+@member_router.post("/mypage/editprofile")
+async def update_profile(profile_image: UploadFile = File(...), session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    파일 업로드(프로필 설정)
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 전송받은 파일 저장소에 저장
+    file_location = f"D:/새싹/미니프로젝트1/사진/{profile_image.filename}"
+    with open(file_location, "wb") as file:
+        contents = await profile_image.read()
+        file.write(contents)
+
+    member.profile_img = file_location
+
+    # 4. 데이터베이스에 변경 사항 저장
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+
+    return {"message":"프로필 업데이트 완료"}
 
 
 @member_router.delete("/delete_account")

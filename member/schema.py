@@ -26,7 +26,6 @@ class MemberSignIn(SQLModel):
 
 # 회원 정보 수정 시 전달되는 데이터 모델
 class MemberUpdate(SQLModel):
-    profile_img: str
     name: str
     email: EmailStr
     nickname: str
