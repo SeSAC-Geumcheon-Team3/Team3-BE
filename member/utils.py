@@ -1,14 +1,10 @@
 from passlib.context import CryptContext
 from jose import jwt
-import os
-from dotenv import load_dotenv
 from time import time
-
+from connection import Settings
 
 # .env 파일 로드
-load_dotenv()
-# .env에 정의된 SECRET_KEY 가져오기
-SECRET_KEY = os.getenv("SECRET_KEY")
+settings = Settings()
 
 class HashPassword:
     """
@@ -27,7 +23,7 @@ class JWTHandler:
     """
     jwt 토큰 핸들링
     """
-    def __init__(self, secret_key: str=SECRET_KEY, algorithm: str="HS256", expires_in: int=3600):
+    def __init__(self, secret_key: str=settings.SECRET_KEY, algorithm: str=settings.ALGORITHM, expires_in: int=settings.EXP):
         self.secret_key = secret_key
         self.algorithm = algorithm
         self.expires_in = expires_in
