@@ -7,7 +7,7 @@ from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId
 from connection import get_session, Settings
 from sqlmodel import select
 from member.utils import HashPassword, JWTHandler, JWTtoFindPW
-from member.auth import get_access_token
+from member.auth import get_access_token, get_reset_pw_token
 import os
 from fastapi.responses import FileResponse
 
@@ -93,12 +93,40 @@ async def auth_edit_member(data:editMemberPW, session=Depends(get_session), toke
     if not member: 
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
-    # 3. 비밀번호 암호화 후 비교
+    # 3. 비밀번호 복호화 후 비교
     if not hash_password.verify_password(data.password, member.password):
         raise HTTPException(status_code=401, detail="권한이 없습니다.")
 
     # 4. 비밀번호 재설정용 토큰 반환
-    return {"token2pw":jwt_to_find_pw.create_token(member.member_idx)}
+    return {"access_token":jwt_to_find_pw.create_token(member.member_idx)}
+
+
+@member_router.put("/reset_pw")
+async def reset_password(data:editMemberPW, session=Depends(get_session), token=Depends(get_reset_pw_token))->dict:
+    """
+    비밀번호 재설정용 토큰에서 idx 추출
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: 
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    
+    # 3. 비밀번호 암호화
+    if hash_password.verify_password(data.password, member.password):
+        raise HTTPException(status_code=400, detail="기존의 비밀번호와 일치합니다. 다시 입력 해 주세요")
+    
+    # 4. 비밀번호 암호화 후 재설정
+    member.password = hash_password.hash_password(data.password)
+    
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+    
+    return {"message":"비밀번호 수정이 완료되었습니다. 재로그인 해 주세요"}
 
 
 @member_router.get("/mypage")
@@ -257,8 +285,8 @@ async def find_pw(data:FindMemberPw, session=Depends(get_session)) -> dict:
     # 1. 회원 조회
     statement = select(Member).where((Member.email==data.email) & (Member.name==data.name) & (Member.phone==data.phone))
     member = session.exec(statement).first()
+    
     if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
-    # 2. pw 재설정 링크 생성 및 이메일 발송 링크 생성
-
-    return {"link":"거시기입니다"}
+    # 2. 비밀번호 재설정용 토큰 반환
+    return {"access_token":jwt_to_find_pw.create_token(member.member_idx)}
