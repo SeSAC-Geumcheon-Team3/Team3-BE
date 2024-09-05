@@ -5,7 +5,7 @@ from typing import Optional
 class Product(SQLModel, table=True):
     idx: int = Field(default=None, primary_key=True)
     member_idx: Optional[int] = Field(default=None)  # 외래키 설정 추가 필요
-    icon: str
+    icon: str = ''
     product_name: str
     stock: int
     limit: int

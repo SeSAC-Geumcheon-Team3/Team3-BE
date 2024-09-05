@@ -3,7 +3,7 @@ from typing import List
 from datetime import date
 
 class ProductItem(BaseModel):
-    index: int
+    idx: int
     icon: str
     product: str
     category: str
@@ -12,9 +12,6 @@ class ProductItem(BaseModel):
     update_date: date
 
 class ProductResponse(BaseModel):
-    page: int
-    size: int
-    totalPages: int
     totalItems: int
     items: List[ProductItem]
 
