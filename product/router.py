@@ -14,6 +14,7 @@ product_router = APIRouter(
 product_list = []
 product_logs = []
 
+
 # 생필품 조회
 @product_router.get("/product", response_model=ProductResponse)
 async def get_products(
@@ -30,22 +31,16 @@ async def get_products(
 
     if total_items == 0:
         return ProductResponse(
-            page=page,
-            size=size,
-            totalPages=0,
             totalItems=0,
             items=[]
         )
 
-    offset = (page - 1) * size
-    limit = size
-
-    products_query = select(Product).where(Product.member_idx==member_idx).offset(offset).limit(limit)
+    products_query = select(Product).where(Product.member_idx==member_idx)
     products = session.exec(products_query).all()
 
     items_pydantic = [
         ProductItem(
-            index=product.idx,
+            idx=product.idx,
             icon=product.icon,
             product=product.product_name,
             category=product.category,
@@ -55,15 +50,11 @@ async def get_products(
         ) for product in products
     ]
 
-    total_pages = (total_items + size - 1) // size
-
     return ProductResponse(
-        page=page,
-        size=size,
-        totalPages=total_pages,
         totalItems=total_items,
         items=items_pydantic
     )
+
 
 # 생필품 목록 입력
 @product_router.post("/product", status_code=201)
