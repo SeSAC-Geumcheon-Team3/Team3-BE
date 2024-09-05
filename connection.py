@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     SECRET_KEY: Optional[str] = None
     EXP: Optional[int] = None
     ALGORITHM: Optional[str] = None
+    UPLOAD_DIRECTORY: Optional[str] = None
     class Config:
         env_file = ".env"
 

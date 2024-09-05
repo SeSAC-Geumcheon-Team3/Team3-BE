@@ -54,7 +54,6 @@ class MemberInfo(SQLModel):
     email: str
     nickname: str
     phone: str
-    profile_img: str
     birth: str
     sex: str
     household: int

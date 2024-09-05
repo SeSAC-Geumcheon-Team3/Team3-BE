@@ -4,15 +4,19 @@
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from member.model import Member 
 from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw, editMemberPW, MemberInfo
-from connection import get_session
+from connection import get_session, Settings
 from sqlmodel import select
 from member.utils import HashPassword, JWTHandler
 from member.auth import get_access_token
+import os
+from fastapi.responses import FileResponse
 
 member_router = APIRouter( tags=["member"] )
 
 hash_password = HashPassword()
 jwt_handler = JWTHandler()
+
+settings = Settings()
 
 @member_router.post("/signup")
 async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dict:
@@ -114,7 +118,6 @@ async def get_member(session=Depends(get_session), token=Depends(get_access_toke
         email=member.email,
         nickname=member.nickname,
         phone=member.phone,
-        profile_img=member.profile_img,
         birth=member.birth,
         sex=member.sex,
         household=member.household,
@@ -122,6 +125,23 @@ async def get_member(session=Depends(get_session), token=Depends(get_access_toke
     )
     
     return member_info.model_dump()
+
+@member_router.get("/mypage/profile")
+async def get_member_profile(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    파일 전송
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    if member.profile_img=='':
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, 'main.png')
+        return FileResponse(path=file_path, media_type='application/octet-stream', filename='main.png')
+    else:
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, member.profile_img)
+        return FileResponse(path=file_path, media_type='application/octet-stream', filename=member.profile_img)
 
 
 @member_router.put("/mypage/edit")
@@ -167,12 +187,12 @@ async def update_profile(profile_image: UploadFile = File(...), session=Depends(
     if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
     # 3. 전송받은 파일 저장소에 저장
-    file_location = f"D:/새싹/미니프로젝트1/사진/{profile_image.filename}"
+    file_location = os.path.join(settings.UPLOAD_DIRECTORY, profile_image.filename)
     with open(file_location, "wb") as file:
         contents = await profile_image.read()
         file.write(contents)
 
-    member.profile_img = file_location
+    member.profile_img = profile_image.filename
 
     # 4. 데이터베이스에 변경 사항 저장
     session.add(member)
