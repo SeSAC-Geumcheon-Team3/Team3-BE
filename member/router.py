@@ -1,21 +1,26 @@
 """
 사용자 관리 기능(ex.로그인,회원가입)
 """
-from fastapi import APIRouter, HTTPException, status, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from member.model import Member 
 from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw, editMemberPW, MemberInfo
-from connection import get_session
+from connection import get_session, Settings
 from sqlmodel import select
-from member.utils import HashPassword, JWTHandler
-from member.auth import get_access_token
+from member.utils import HashPassword, JWTHandler, JWTtoFindPW
+from member.auth import get_access_token, get_reset_pw_token
+import os
+from fastapi.responses import FileResponse
 
 member_router = APIRouter( tags=["member"] )
 
 hash_password = HashPassword()
 jwt_handler = JWTHandler()
+jwt_to_find_pw = JWTtoFindPW()
+
+settings = Settings()
 
 @member_router.post("/signup")
-async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dict:
+async def signUp(data: MemberSignUp, session=Depends(get_session)) -> dict:
     """
     회원가입
     """
@@ -38,7 +43,7 @@ async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dic
 
 
 @member_router.post("/signin")
-async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dict:
+async def signIn(data: MemberSignIn, session=Depends(get_session)) -> dict:
     """
     로그인
     """
@@ -88,11 +93,40 @@ async def auth_edit_member(data:editMemberPW, session=Depends(get_session), toke
     if not member: 
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
-    # 3. 비밀번호 암호화 후 비교
+    # 3. 비밀번호 복호화 후 비교
     if not hash_password.verify_password(data.password, member.password):
         raise HTTPException(status_code=401, detail="권한이 없습니다.")
 
-    return {"message":"권한이 있는 사용자입니다."}
+    # 4. 비밀번호 재설정용 토큰 반환
+    return {"access_token":jwt_to_find_pw.create_token(member.member_idx)}
+
+
+@member_router.put("/reset_pw")
+async def reset_password(data:editMemberPW, session=Depends(get_session), token=Depends(get_reset_pw_token))->dict:
+    """
+    비밀번호 재설정용 토큰에서 idx 추출
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: 
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    
+    # 3. 비밀번호 암호화
+    if hash_password.verify_password(data.password, member.password):
+        raise HTTPException(status_code=400, detail="기존의 비밀번호와 일치합니다. 다시 입력 해 주세요")
+    
+    # 4. 비밀번호 암호화 후 재설정
+    member.password = hash_password.hash_password(data.password)
+    
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+    
+    return {"message":"비밀번호 수정이 완료되었습니다. 재로그인 해 주세요"}
 
 
 @member_router.get("/mypage")
@@ -114,7 +148,6 @@ async def get_member(session=Depends(get_session), token=Depends(get_access_toke
         email=member.email,
         nickname=member.nickname,
         phone=member.phone,
-        profile_img=member.profile_img,
         birth=member.birth,
         sex=member.sex,
         household=member.household,
@@ -122,6 +155,23 @@ async def get_member(session=Depends(get_session), token=Depends(get_access_toke
     )
     
     return member_info.model_dump()
+
+@member_router.get("/mypage/profile")
+async def get_member_profile(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    파일 전송
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    if member.profile_img=='':
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, 'main.png')
+        return FileResponse(path=file_path, media_type='application/octet-stream', filename='main.png')
+    else:
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, member.profile_img)
+        return FileResponse(path=file_path, media_type='application/octet-stream', filename=member.profile_img)
 
 
 @member_router.put("/mypage/edit")
@@ -139,13 +189,11 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
 
     member.name = data.name
     member.email = data.email
-    # member.password = hash_password.hash_password(data.password)
     member.nickname = data.nickname
     member.phone = data.phone
     member.notice = data.notice
     member.sex = data.sex
     member.household = data.household
-    member.profile_img = data.profile_img
 
     # 3. 데이터베이스에 변경 사항 저장
     session.add(member)
@@ -153,6 +201,35 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
     session.refresh(member)
 
     return {"message":"회원정보가 성공적으로 수정되었습니다."}
+
+
+@member_router.post("/mypage/editprofile")
+async def update_profile(profile_image: UploadFile = File(...), session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    파일 업로드(프로필 설정)
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 전송받은 파일 저장소에 저장
+    file_location = os.path.join(settings.UPLOAD_DIRECTORY, profile_image.filename)
+    with open(file_location, "wb") as file:
+        contents = await profile_image.read()
+        file.write(contents)
+
+    member.profile_img = profile_image.filename
+
+    # 4. 데이터베이스에 변경 사항 저장
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+
+    return {"message":"프로필 업데이트 완료"}
 
 
 @member_router.delete("/delete_account")
@@ -208,8 +285,8 @@ async def find_pw(data:FindMemberPw, session=Depends(get_session)) -> dict:
     # 1. 회원 조회
     statement = select(Member).where((Member.email==data.email) & (Member.name==data.name) & (Member.phone==data.phone))
     member = session.exec(statement).first()
+    
     if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
-    # 2. pw 재설정 링크 생성 및 이메일 발송 링크 생성
-
-    return {"link":"거시기입니다"}
+    # 2. 비밀번호 재설정용 토큰 반환
+    return {"access_token":jwt_to_find_pw.create_token(member.member_idx)}

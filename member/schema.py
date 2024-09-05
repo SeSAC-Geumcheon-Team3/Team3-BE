@@ -26,7 +26,6 @@ class MemberSignIn(SQLModel):
 
 # 회원 정보 수정 시 전달되는 데이터 모델
 class MemberUpdate(SQLModel):
-    profile_img: str
     name: str
     email: EmailStr
     nickname: str
@@ -42,7 +41,8 @@ class FindMemberId(SQLModel):
     name:str
     phone:str
 
-# PW 찾을 때 전달되는 데이터 모델
+
+# PW 찾기 버튼에서 전달되는 데이터 모델
 class FindMemberPw(SQLModel):
     email:str
     name:str
@@ -55,7 +55,6 @@ class MemberInfo(SQLModel):
     email: str
     nickname: str
     phone: str
-    profile_img: str
     birth: str
     sex: str
     household: int

@@ -51,3 +51,36 @@ class JWTHandler:
         # 토큰 형식 불일치
         except jwt.InvalidTokenError:
             raise ValueError("Invalid token")
+        
+class JWTtoFindPW:
+    """
+    암호 재설정 위한 JWT 토큰 형식 추가
+    """
+    def __init__(self, secret_key: str=settings.SECRET_KEY, algorithm: str=settings.ALGORITHM, expires_in: int=settings.EXP):
+        self.secret_key = secret_key
+        self.algorithm = algorithm
+        self.expires_in = expires_in
+
+    def create_token(self, member_idx: int) -> str:
+        """
+        JWT 생성 함수  
+        return: 생성된 JWT 토큰 문자열
+        """
+        payload = {"member_idx":member_idx, "iat":time(), "exp": time()+self.expires_in}
+        return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
+
+    def verify_token(self, token: str) -> dict:
+        """
+        JWT 검증 함수  
+        return: JWT의 payload
+        """
+        try:
+            return jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+        
+        # exp 오류 - 토큰만료
+        except jwt.ExpiredSignatureError:
+            raise ValueError("Token has expired")
+        
+        # 토큰 형식 불일치
+        except jwt.InvalidTokenError:
+            raise ValueError("Invalid token")
