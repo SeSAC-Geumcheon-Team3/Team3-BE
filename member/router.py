@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, status, Depends, Header
 from member.model import Member 
-from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw
+from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw, editMemberPW, MemberInfo
 from connection import get_session
 from sqlmodel import select
 from member.utils import HashPassword, JWTHandler
@@ -74,6 +74,56 @@ async def update_member(session=Depends(get_session), token=Depends(get_access_t
     return {"message":"로그아웃 되었습니다"}
 
 
+@member_router.post("/mypage/get_edit_auth")
+async def auth_edit_member(data:editMemberPW, session=Depends(get_session), token=Depends(get_access_token)) -> dict :
+    """
+    회원정보 수정을 위해 비밀번호를 입력
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: 
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 비밀번호 암호화 후 비교
+    if not hash_password.verify_password(data.password, member.password):
+        raise HTTPException(status_code=401, detail="권한이 없습니다.")
+
+    return {"message":"권한이 있는 사용자입니다."}
+
+
+@member_router.get("/mypage")
+async def get_member(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    회원정보 조회
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()
+
+    # 2. 회원 없을 시 404 오류
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 3. 회원 정보 응답 스키마 생성
+    member_info = MemberInfo(
+        name=member.name,
+        email=member.email,
+        nickname=member.nickname,
+        phone=member.phone,
+        profile_img=member.profile_img,
+        birth=member.birth,
+        sex=member.sex,
+        household=member.household,
+        notice = member.notice
+    )
+    
+    return member_info.model_dump()
+
+
 @member_router.put("/mypage/edit")
 async def update_member(data:MemberUpdate, session=Depends(get_session), token=Depends(get_access_token)) -> dict:
     """
@@ -89,7 +139,7 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
 
     member.name = data.name
     member.email = data.email
-    member.password = hash_password.hash_password(data.password)
+    # member.password = hash_password.hash_password(data.password)
     member.nickname = data.nickname
     member.phone = data.phone
     member.notice = data.notice
@@ -102,10 +152,7 @@ async def update_member(data:MemberUpdate, session=Depends(get_session), token=D
     session.commit()
     session.refresh(member)
 
-    # 4. 수정된 member를 MemberUpdate 객체로 변환하여 반환
-    updated_member = MemberUpdate.model_validate(member)
-
-    return updated_member.model_dump()
+    return {"message":"회원정보가 성공적으로 수정되었습니다."}
 
 
 @member_router.delete("/delete_account")
