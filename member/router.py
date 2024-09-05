@@ -6,7 +6,7 @@ from member.model import Member
 from member.schema import MemberSignUp, MemberSignIn, MemberUpdate, FindMemberId, FindMemberPw, editMemberPW, MemberInfo
 from connection import get_session, Settings
 from sqlmodel import select
-from member.utils import HashPassword, JWTHandler
+from member.utils import HashPassword, JWTHandler, JWTtoFindPW
 from member.auth import get_access_token
 import os
 from fastapi.responses import FileResponse
@@ -15,11 +15,12 @@ member_router = APIRouter( tags=["member"] )
 
 hash_password = HashPassword()
 jwt_handler = JWTHandler()
+jwt_to_find_pw = JWTtoFindPW()
 
 settings = Settings()
 
 @member_router.post("/signup")
-async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dict:
+async def signUp(data: MemberSignUp, session=Depends(get_session)) -> dict:
     """
     회원가입
     """
@@ -42,7 +43,7 @@ async def sign_new_user(data: MemberSignUp, session=Depends(get_session)) -> dic
 
 
 @member_router.post("/signin")
-async def sign_new_user(data: MemberSignIn, session=Depends(get_session)) -> dict:
+async def signIn(data: MemberSignIn, session=Depends(get_session)) -> dict:
     """
     로그인
     """
@@ -96,7 +97,8 @@ async def auth_edit_member(data:editMemberPW, session=Depends(get_session), toke
     if not hash_password.verify_password(data.password, member.password):
         raise HTTPException(status_code=401, detail="권한이 없습니다.")
 
-    return {"message":"권한이 있는 사용자입니다."}
+    # 4. 비밀번호 재설정용 토큰 반환
+    return {"token2pw":jwt_to_find_pw.create_token(member.member_idx)}
 
 
 @member_router.get("/mypage")

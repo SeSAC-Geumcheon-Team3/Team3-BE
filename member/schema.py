@@ -41,7 +41,8 @@ class FindMemberId(SQLModel):
     name:str
     phone:str
 
-# PW 찾을 때 전달되는 데이터 모델
+
+# PW 찾기 버튼에서 전달되는 데이터 모델
 class FindMemberPw(SQLModel):
     email:str
     name:str
