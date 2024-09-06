@@ -18,7 +18,10 @@ async def lifespan(app:FastAPI):
 
 
 # FastAPI 객체 생성. lifespan: fastAPI 객체의 라이프사이클 중 특정 시점에 수행할 함수
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    openapi_url=None    
+)
 
 origins = [
     "http://localhost:3000",
