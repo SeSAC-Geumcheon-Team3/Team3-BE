@@ -290,3 +290,34 @@ async def find_pw(data:FindMemberPw, session=Depends(get_session)) -> dict:
 
     # 2. 비밀번호 재설정용 토큰 반환
     return {"access_token":jwt_to_find_pw.create_token(member.member_idx)}
+
+@member_router.post("/findpw")
+async def find_pw(data:FindMemberPw, session=Depends(get_session)) -> dict:
+    """
+    비밀번호 찾기
+    """
+    # 1. 회원 조회
+    statement = select(Member).where((Member.email==data.email) & (Member.name==data.name) & (Member.phone==data.phone))
+    member = session.exec(statement).first()
+    
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 2. 비밀번호 재설정용 토큰 반환
+    return {"access_token":jwt_to_find_pw.create_token(member.member_idx)}
+
+## 권한 확인
+@member_router.get("/getAuth")
+async def get_auth(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    member_idx = token["member_idx"]
+    # 1. 회원 조회
+    statement = select(Member).where((Member.member_idx==member_idx))
+    member = session.exec(statement).first()
+    
+    if not member: raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 관리자임을 리턴
+    if member.authority == '관리자':
+        return {"admin":True}
+    
+    # 일반 사용자임을 리턴
+    return {"admin":False}
