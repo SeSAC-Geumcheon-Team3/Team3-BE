@@ -106,6 +106,7 @@ async def reset_password(data:editMemberPW, session=Depends(get_session), token=
     """
     비밀번호 재설정용 토큰에서 idx 추출
     """
+    print(data)
     # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
     member_idx = token["member_idx"]
     statement = select(Member).where(Member.member_idx == member_idx)
@@ -127,6 +128,24 @@ async def reset_password(data:editMemberPW, session=Depends(get_session), token=
     session.refresh(member)
     
     return {"message":"비밀번호 수정이 완료되었습니다. 재로그인 해 주세요"}
+
+
+@member_router.get("/getprofile")
+async def get_member_profile(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
+    """
+    파일 전송
+    """
+    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
+    member_idx = token["member_idx"]
+    statement = select(Member).where(Member.member_idx == member_idx)
+    member = session.exec(statement).first()    
+
+    if member.profile_img=='':
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, 'main.png')
+        return FileResponse(path=file_path, media_type='application/octet-stream', filename='main.png')
+    else:
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, member.profile_img)
+        return FileResponse(path=file_path, media_type='application/octet-stream', filename=member.profile_img)
 
 
 @member_router.get("/mypage")
@@ -156,25 +175,7 @@ async def get_member(session=Depends(get_session), token=Depends(get_access_toke
     
     return member_info.model_dump()
 
-@member_router.get("/mypage/profile")
-async def get_member_profile(session=Depends(get_session), token=Depends(get_access_token)) -> dict:
-    """
-    파일 전송
-    """
-    # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
-    member_idx = token["member_idx"]
-    statement = select(Member).where(Member.member_idx == member_idx)
-    member = session.exec(statement).first()
-
-    if member.profile_img=='':
-        file_path = os.path.join(settings.UPLOAD_DIRECTORY, 'main.png')
-        return FileResponse(path=file_path, media_type='application/octet-stream', filename='main.png')
-    else:
-        file_path = os.path.join(settings.UPLOAD_DIRECTORY, member.profile_img)
-        return FileResponse(path=file_path, media_type='application/octet-stream', filename=member.profile_img)
-
-
-@member_router.put("/mypage/edit")
+@member_router.put("/mypage-edit")
 async def update_member(data:MemberUpdate, session=Depends(get_session), token=Depends(get_access_token)) -> dict:
     """
     회원정보 수정
@@ -208,6 +209,7 @@ async def update_profile(profile_image: UploadFile = File(...), session=Depends(
     """
     파일 업로드(프로필 설정)
     """
+    print(profile_image)
     # 1. 헤더에서 accessToken 가져와 회원 인덱스로 DB에서 회원 정보를 조회
     member_idx = token["member_idx"]
     statement = select(Member).where(Member.member_idx == member_idx)

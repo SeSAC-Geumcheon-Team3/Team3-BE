@@ -2,6 +2,7 @@ from sqlmodel import create_engine, SQLModel, Session
 from pydantic_settings import BaseSettings
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
 
 # sqlite 연결 정보
 # database_file = "planner.db"
@@ -44,5 +45,9 @@ def get_session():
     """
     DB와의 상호작용을 관리
     """
-    with Session(engine_url) as session:
-        yield session                           # 세션이 호출자에게 반환. return과 달리 종료x
+    try:
+        with Session(engine_url) as session:
+            yield session                           # 세션이 호출자에게 반환. return과 달리 종료x
+    except Exception as e:
+        print(f"Error creating session: {e}")
+        raise HTTPException(status_code=500, detail="Session 생성 실패")
